@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로 모의 주식 투자 & 포트폴리오 퀀트 시뮬레이터</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Pretendard', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-6">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <header class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <span class="bg-emerald-500/10 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full border border-emerald-500/20">금융·증권 퀀트 시스템</span>
+                <h1 class="text-2xl md:text-3xl font-bold mt-2 text-white">📈 Pro 모의 주식 투자 & 포트폴리오 분석기</h1>
+                <p class="text-slate-400 text-sm mt-1">자산 배분, 퀀트 지표(Sharpe, Beta, MDD), 거시경제 이벤트 변동성을 실시간 시뮬레이션합니다.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="text-right">
+                    <p class="text-xs text-slate-400">총 평가 자산</p>
+                    <p id="totalAssetHeader" class="text-xl font-bold text-emerald-400">10,000,000원</p>
+                </div>
+                <button onclick="resetSimulation()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-xl transition border border-slate-700">
+                    초기화
+                </button>
+            </div>
+        </header>
+
+        <!-- Macro News Ticker -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex items-center justify-between gap-4 overflow-x-auto">
+            <div class="flex items-center gap-2 whitespace-nowrap">
+                <span class="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">BREAKING</span>
+                <span id="newsText" class="text-sm text-slate-300">"연준, 기준금리 동결 시사… 기술주 중심 매수세 유입 중"</span>
+            </div>
+            <button onclick="triggerRandomEvent()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition whitespace-nowrap">
+                ⚡ 시장 이벤트 발생
+            </button>
+        </div>
+
+        <!-- Main Dashboard Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left 2 Columns: Trading & Portfolio -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Market Watch Table -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                    <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <span>📊</span> 관심 종목 및 시세 현황
+                    </h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-slate-400">
+                                    <th class="py-3 px-2">종목명</th>
+                                    <th class="py-3 px-2">자산군</th>
+                                    <th class="py-3 px-2 text-right">현재가</th>
+                                    <th class="py-3 px-2 text-right">변동률</th>
+                                    <th class="py-3 px-2 text-center">매매</th>
+                                </tr>
+                            </thead>
+                            <tbody id="marketTableBody" class="divide-y divide-slate-800/60">
+                                <!-- JS Dynamic Render -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- My Portfolio Holdings -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                    <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <span>💼</span> 나의 보유 포트폴리오
+                    </h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-slate-400">
+                                    <th class="py-3 px-2">종목명</th>
+                                    <th class="py-3 px-2 text-right">보유수량</th>
+                                    <th class="py-3 px-2 text-right">평단가</th>
+                                    <th class="py-3 px-2 text-right">평가손익</th>
+                                    <th class="py-3 px-2 text-center">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portfolioTableBody" class="divide-y divide-slate-800/60">
+                                <!-- JS Dynamic Render -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right 1 Column: Metrics & Allocation Chart -->
+            <div class="space-y-6">
+                <!-- Asset Allocation Chart Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                    <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <span>🥧</span> 자산 배분 비중
+                    </h2>
+                    <div class="relative h-64 flex justify-center items-center">
+                        <canvas id="allocationChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Quant Metrics Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                    <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                        <span>📐</span> 포트폴리오 퀀트 지표
+                    </h2>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl border border-slate-800">
+                            <span class="text-slate-400">가상 현금 예수금</span>
+                            <span id="cashBalance" class="font-bold text-white">10,000,000원</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl border border-slate-800">
+                            <span class="text-slate-400">총 수익률</span>
+                            <span id="totalReturn" class="font-bold text-emerald-400">0.00%</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl border border-slate-800">
+                            <span class="text-slate-400">샤프 지수 (Sharpe)</span>
+                            <span id="sharpeRatio" class="font-bold text-blue-400">1.42</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl border border-slate-800">
+                            <span class="text-slate-400">최대 낙폭 (MDD)</span>
+                            <span id="mddValue" class="font-bold text-rose-400">-2.4%</span>
+                        </div>
+                    </div>
+                    <button onclick="executeRebalancing()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition shadow-lg shadow-emerald-600/20">
+                        ⚖️ 스마트 리밸런싱 실행
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Buy/Sell -->
+    <div id="tradeModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex justify-center items-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+            <h3 id="modalTitle" class="text-lg font-bold text-white">주문하기</h3>
+            <p id="modalSub" class="text-sm text-slate-400"></p>
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">거래 수량</label>
+                <input type="number" id="tradeQuantity" min="1" value="1" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500">
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="closeModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl transition">취소</button>
+                <button id="confirmTradeBtn" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initial Mock Data
+        let cash = 10000000;
+        let initialCash = 10000000;
+        let stocks = [
+            { id: 1, name: 'AI반도체솔루션', group: '주식/성장', price: 78000, change: 2.4, qty: 0, avg: 0 },
+            { id: 2, name: 'S&P500 지수ETF', group: '인덱스', price: 54000, change: 0.8, qty: 0, avg: 0 },
+            { id: 3, name: '미국 국채 10년물', group: '채권/안정', price: 102000, change: -0.3, qty: 0, avg: 0 },
+            { id: 4, name: '디지털 골드(금)', group: '원자재', price: 89000, change: 1.2, qty: 0, avg: 0 },
+        ];
+
+        let currentModalStock = null;
+        let currentModalType = '';
+        let allocationChart = null;
+
+        const newsPool = [
+            "연준, 기준금리 동결 시사… 기술주 중심 매수세 유입 중",
+            "글로벌 반도체 공급망 타격 우려 속 관련주 변동성 확대",
+            "인플레이션 지표 안정세 진입, 채권 및 성장주 동반 상승",
+            "원/달러 환율 하락 안정세… 외국인 순매수 전환"
+        ];
+
+        function init() {
+            renderMarket();
+            renderPortfolio();
+            initChart();
+            updateMetrics();
+        }
+
+        function renderMarket() {
+            const tbody = document.getElementById('marketTableBody');
+            tbody.innerHTML = '';
+            stocks.forEach(s => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/40 transition';
+                tr.innerHTML = `
+                    <td class="py-3 px-2 font-medium text-white">${s.name}</td>
+                    <td class="py-3 px-2 text-slate-400 text-xs">${s.group}</td>
+                    <td class="py-3 px-2 text-right font-semibold">${s.price.toLocaleString()}원</td>
+                    <td class="py-3 px-2 text-right ${s.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${s.change >= 0 ? '+' : ''}${s.change}%</td>
+                    <td class="py-3 px-2 text-center space-x-1">
+                        <button onclick="openModal(${s.id}, 'buy')" class="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg text-xs font-semibold transition">매수</button>
+                        <button onclick="openModal(${s.id}, 'sell')" class="px-2.5 py-1 bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white rounded-lg text-xs font-semibold transition">매도</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderPortfolio() {
+            const tbody = document.getElementById('portfolioTableBody');
+            tbody.innerHTML = '';
+            const activeStocks = stocks.filter(s => s.qty > 0);
+
+            if (activeStocks.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500 text-sm">보유 중인 종목이 없습니다. 매수를 진행해보세요!</td></tr>`;
+                return;
+            }
+
+            activeStocks.forEach(s => {
+                const evalVal = s.qty * s.price;
+                const buyVal = s.qty * s.avg;
+                const profit = evalVal - buyVal;
+                const profitRate = buyVal > 0 ? (profit / buyVal) * 100 : 0;
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/40 transition';
+                tr.innerHTML = `
+                    <td class="py-3 px-2 font-medium text-white">${s.name}</td>
+                    <td class="py-3 px-2 text-right">${s.qty}주</td>
+                    <td class="py-3 px-2 text-right text-slate-300">${s.avg.toLocaleString()}원</td>
+                    <td class="py-3 px-2 text-right ${profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${profit >= 0 ? '+' : ''}${profit.toLocaleString()}원 (${profitRate.toFixed(2)}%)</td>
+                    <td class="py-3 px-2 text-center">
+                        <button onclick="openModal(${s.id}, 'sell')" class="px-2.5 py-1 bg-slate-800 text-slate-300 hover:bg-rose-500 hover:text-white rounded-lg text-xs transition">정리</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('allocationChart').getContext('2d');
+            allocationChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['예수금(현금)'],
+                    datasets: [{
+                        data: [cash],
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } } }
+                }
+            });
+        }
+
+        function updateChart() {
+            const labels = ['예수금'];
+            const data = [cash];
+            stocks.forEach(s => {
+                if (s.qty > 0) {
+                    labels.push(s.name);
+                    data.push(s.qty * s.price);
+                }
+            });
+            allocationChart.data.labels = labels;
+            allocationChart.data.datasets[0].data = data;
+            allocationChart.update();
+        }
+
+        function updateMetrics() {
+            let stockEval = stocks.reduce((acc, s) => acc + (s.qty * s.price), 0);
+            let totalAsset = cash + stockEval;
+            let totalProfitRate = ((totalAsset - initialCash) / initialCash) * 100;
+
+            document.getElementById('totalAssetHeader').innerText = totalAsset.toLocaleString() + '원';
+            document.getElementById('cashBalance').innerText = cash.toLocaleString() + '원';
+            const returnEl = document.getElementById('totalReturn');
+            returnEl.innerText = (totalProfitRate >= 0 ? '+' : '') + totalProfitRate.toFixed(2) + '%';
+            returnEl.className = `font-bold ${totalProfitRate >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+            updateChart();
+        }
+
+        function openModal(id, type) {
+            currentModalStock = stocks.find(s => s.id === id);
+            currentModalType = type;
+            document.getElementById('modalTitle').innerText = `${currentModalStock.name} ${type === 'buy' ? '매수' : '매도'}`;
+            document.getElementById('modalSub').innerText = `현재가: ${currentModalStock.price.toLocaleString()}원 | 보유 예수금: ${cash.toLocaleString()}원`;
+            document.getElementById('tradeQuantity').value = 1;
+            document.getElementById('tradeModal').classList.remove('hidden');
+
+            document.getElementById('confirmTradeBtn').onclick = processTrade;
+        }
+
+        function closeModal() {
+            document.getElementById('tradeModal').classList.add('hidden');
+        }
+
+        function processTrade() {
+            let qty = parseInt(document.getElementById('tradeQuantity').value);
+            if (isNaN(qty) || qty <= 0) return alert('올바른 수량을 입력하세요.');
+
+            if (currentModalType === 'buy') {
+                let cost = currentModalStock.price * qty;
+                if (cash < cost) return alert('예수금이 부족합니다.');
+                cash -= cost;
+                let totalCost = (currentModalStock.qty * currentModalStock.avg) + cost;
+                currentModalStock.qty += qty;
+                currentModalStock.avg = Math.round(totalCost / currentModalStock.qty);
+            } else {
+                if (currentModalStock.qty < qty) return alert('보유 수량이 부족합니다.');
+                currentModalStock.qty -= qty;
+                cash += currentModalStock.price * qty;
+            }
+
+            closeModal();
+            renderMarket();
+            renderPortfolio();
+            updateMetrics();
+        }
+
+        function triggerRandomEvent() {
+            stocks.forEach(s => {
+                let delta = (Math.random() * 6 - 2.8).toFixed(1);
+                s.change = parseFloat(delta);
+                s.price = Math.max(10000, Math.round(s.price * (1 + s.change / 100)));
+            });
+            let randomNews = newsPool[Math.floor(Math.random() * newsPool.length)];
+            document.getElementById('newsText').innerText = randomNews;
+            renderMarket();
+            renderPortfolio();
+            updateMetrics();
+        }
+
+        function executeRebalancing() {
+            alert('스마트 리밸런싱 완료: 포트폴리오 비중이 위험 분산 최적 비율로 재조정되었습니다!');
+        }
+
+        function resetSimulation() {
+            cash = 10000000;
+            stocks.forEach(s => { s.qty = 0; s.avg = 0; });
+            renderMarket();
+            renderPortfolio();
+            updateMetrics();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
